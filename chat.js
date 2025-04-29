@@ -1,9 +1,5 @@
 require('dotenv').config();
 const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
-const readline = require('node:readline').createInterface({
-    input: process.stdin,
-    output: process.stdout,
-});
 const fetch = require('node-fetch'); // Using node-fetch v2 for require
 
 // --- Configuration ---
@@ -117,6 +113,9 @@ async function callA2aSkill(functionName, args) {
 
 // --- Main Chat Logic ---
 async function runChat() {
+    // Dynamically import inquirer
+    const inquirer = (await import('inquirer')).default;
+
     const agentCard = await fetchAgentCard();
     const tools = agentCard?.a2a?.skills;
     const formattedTools = formatSkillsForGemini(tools);
@@ -152,15 +151,15 @@ async function runChat() {
     let keepChatting = true;
 
     while (keepChatting) {
-        // Use a Promise to wait for readline.question
-        const userInput = await new Promise((resolve) => {
-            // Ensure readline is still open before prompting
-            // Note: readline doesn't have a reliable public 'isClosed' flag,
-            // but this structure avoids calling question after close().
-            readline.question("You: ", (input) => {
-                resolve(input);
-            });
-        });
+        // Use inquirer for input
+        const answers = await inquirer.prompt([
+            {
+                type: 'input',
+                name: 'userInput',
+                message: 'You:',
+            }
+        ]);
+        const userInput = answers.userInput;
 
         if (userInput.toLowerCase() === 'quit') {
             keepChatting = false;
@@ -235,7 +234,6 @@ async function runChat() {
         }
     } // End while loop
 
-    readline.close(); // Close readline *after* the loop finishes
     console.log("\nChat ended.");
 }
 
