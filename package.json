@@ -7,7 +7,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "description": "",
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
