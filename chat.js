@@ -118,126 +118,125 @@ async function callA2aSkill(functionName, args) {
 // --- Main Chat Logic ---
 async function runChat() {
     const agentCard = await fetchAgentCard();
-    const tools = formatSkillsForGemini(agentCard?.a2a?.skills);
-
-    if (tools.length === 0) {
-        console.warn("Warning: No tools/skills found from A2A server. Proceeding without tool capabilities.");
-    } else {
-         console.log("Formatted tools for Gemini:", JSON.stringify(tools, null, 2));
-    }
+    const tools = agentCard?.a2a?.skills;
+    const formattedTools = formatSkillsForGemini(tools);
+    console.log("Formatted tools for Gemini:", JSON.stringify(formattedTools, null, 2));
 
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({
-        // Use a model that supports function calling
-        model: "gemini-1.5-flash-latest", // Or gemini-1.5-pro-latest
-        // Define the tools (functions) the model can call
-        tools: tools.length > 0 ? [{ functionDeclarations: tools }] : undefined,
+        model: "gemini-1.5-flash", // Or your preferred model
+        // systemInstruction: "You are a helpful assistant.", // Optional
     });
 
-    const generationConfig = {
-        temperature: 0.9, // Adjust creativity
-        topK: 1,
-        topP: 1,
-        maxOutputTokens: 2048,
-    };
-
-    const safetySettings = [ // Adjust safety settings as needed
-        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-    ];
-
     const chat = model.startChat({
-        generationConfig,
-        safetySettings,
-        history: [ // Optional: Start with some history/context
-             { role: "user", parts: [{ text: "You are a helpful assistant that can use Google Maps tools via function calls to answer user questions about locations, directions, places, etc."}] },
+        // Initial chat history (optional)
+        history: [
+             { role: "user", parts: [{ text: "Hi, what tools do you have?"}] },
              { role: "model", parts: [{ text: "Okay, I understand. I can use my available tools to help with map-related questions. How can I assist you today?"}] }
         ],
+        // Configure safety settings if needed
+        safetySettings: [
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+        ],
+        generationConfig: {
+            // Optional: temperature, maxOutputTokens, etc.
+        },
+        tools: [{ functionDeclarations: formattedTools }], // Pass A2A tools
     });
 
     console.log("\nChat with Gemini (type 'quit' to exit)");
 
-    async function chatLoop() {
-        readline.question("You: ", async (userInput) => {
-            if (userInput.toLowerCase() === 'quit') {
-                readline.close();
-                return;
-            }
+    let keepChatting = true;
 
-            try {
-                console.log("Sending to Gemini...");
-                // Send the user message
-                let result = await chat.sendMessage(userInput);
+    while (keepChatting) {
+        // Use a Promise to wait for readline.question
+        const userInput = await new Promise((resolve) => {
+            // Ensure readline is still open before prompting
+            // Note: readline doesn't have a reliable public 'isClosed' flag,
+            // but this structure avoids calling question after close().
+            readline.question("You: ", (input) => {
+                resolve(input);
+            });
+        });
 
-                // Check if Gemini wants to call a function
-                let functionCalls = result.response.functionCalls();
+        if (userInput.toLowerCase() === 'quit') {
+            keepChatting = false;
+            continue; // Skip processing, loop will exit
+        }
 
-                if (functionCalls && functionCalls.length > 0) {
-                    console.log("Gemini requested function calls:", JSON.stringify(functionCalls, null, 2));
+        try {
+            console.log("Sending to Gemini...");
+            // Send the user message
+            let result = await chat.sendMessage(userInput);
 
-                    // Call the A2A functions and collect responses
-                    const functionResponses = [];
-                    for (const call of functionCalls) {
-                        const functionName = call.name;
-                        const args = call.args;
+            // Check if Gemini wants to call a function
+            let functionCalls = result.response.functionCalls();
 
-                        // --- IMPORTANT: Check if the function called is one we declared ---
-                        const knownFunction = tools.find(t => t.name === functionName);
-                        if (!knownFunction) {
-                            console.error(`Error: Gemini called unknown function '${functionName}'`);
-                            functionResponses.push({
-                                functionResponse: {
-                                    name: functionName,
-                                    response: { // Gemini expects 'response' object
-                                        content: { error: `Function ${functionName} is not available.` }
-                                    }
-                                }
-                            });
-                            continue; // Skip calling A2A for unknown function
-                        }
-                        // ---
+            if (functionCalls && functionCalls.length > 0) {
+                console.log("Gemini requested function calls:", JSON.stringify(functionCalls, null, 2));
 
-                        // Call the A2A server
-                        const apiResponse = await callA2aSkill(functionName, args);
+                // Call the A2A functions and collect responses
+                const functionResponses = [];
+                for (const call of functionCalls) {
+                    const functionName = call.name;
+                    const args = call.args;
 
-                        // Add the API response to the list for Gemini
+                    // --- IMPORTANT: Check if the function called is one we declared ---
+                    const knownFunction = tools.find(t => t.name === functionName);
+                    if (!knownFunction) {
+                        console.error(`Error: Gemini called unknown function '${functionName}'`);
                         functionResponses.push({
                             functionResponse: {
                                 name: functionName,
                                 response: { // Gemini expects 'response' object
-                                    // Send back the 'result' or 'error' nested under 'content'
-                                    content: apiResponse,
+                                    content: { error: `Function ${functionName} is not available.` }
                                 }
                             }
                         });
-                    } // End loop through function calls
+                        continue; // Skip calling A2A for unknown function
+                    }
+                    // ---
 
-                    // Send the function responses back to Gemini
-                    console.log("\nSending function responses back to Gemini...");
-                    result = await chat.sendMessage(functionResponses);
-                    // The final response from Gemini should now incorporate the tool results
-                }
+                    // Call the A2A server
+                    const apiResponse = await callA2aSkill(functionName, args);
 
-                // Display Gemini's final text response (after potential function calls)
-                const finalResponseText = result.response.text();
-                console.log(`\nGemini: ${finalResponseText}`);
+                    // Add the API response to the list for Gemini
+                    functionResponses.push({
+                        functionResponse: {
+                            name: functionName,
+                            response: { // Gemini expects 'response' object
+                                // Send back the 'result' or 'error' nested under 'content'
+                                content: apiResponse,
+                            }
+                        }
+                    });
+                } // End loop through function calls
 
-            } catch (error) {
-                console.error("\nAn error occurred:", error);
-                // Handle potential specific errors, like blocked content
-                if (error.message.includes("SAFETY")) {
-                     console.error("Gemini Response Blocked due to Safety Settings.");
-                }
-            } finally {
-                // Continue the loop
-                chatLoop();
+                // Send the function responses back to Gemini
+                console.log("\nSending function responses back to Gemini...");
+                result = await chat.sendMessage(functionResponses);
+                // The final response from Gemini should now incorporate the tool results
             }
-        });
-    }
 
-    chatLoop(); // Start the first loop
+            // Display Gemini's final text response (after potential function calls)
+            const finalResponseText = result.response.text();
+            console.log(`\nGemini: ${finalResponseText}`);
+
+        } catch (error) {
+            console.error("\nAn error occurred:", error);
+            // Handle potential specific errors, like blocked content
+            if (error.message.includes("SAFETY")) {
+                 console.error("Gemini Response Blocked due to Safety Settings.");
+            }
+            // Decide if error is fatal? For now, just log and continue the loop.
+        }
+    } // End while loop
+
+    readline.close(); // Close readline *after* the loop finishes
+    console.log("\nChat ended.");
 }
 
 runChat().catch(console.error);
