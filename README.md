@@ -121,8 +121,7 @@ Ask questions like:
 *   `Find me some vegan restaurants near the Brandenburg Gate in Berlin.`
 *   `Tell me more about Place ID ChIJPTacEpBQwokRKwIlDXelxkA` (Place ID for Statue of Liberty)
 *   `How long does it usually take to drive from London to Manchester?`
-*   `What's the elevation of Mount Everest?` (May require specific phrasing for the API)
-*   `What is the capital of France?` (Gemini should answer this directly without using a tool)
+*   `What's the elevation of Mount Everest?`
 
 ## Troubleshooting
 
