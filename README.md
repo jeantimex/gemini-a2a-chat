@@ -119,7 +119,7 @@ Ask questions like:
 *   `What are the coordinates for 1 Infinite Loop, Cupertino?`
 *   `How do I walk from Buckingham Palace to the British Museum?`
 *   `Find me some vegan restaurants near the Brandenburg Gate in Berlin.`
-*   `Tell me more about Place ID ChIJjdqS4lpZwokR7Q1_U7P0z7k` (Place ID for Statue of Liberty)
+*   `Tell me more about Place ID ChIJPTacEpBQwokRKwIlDXelxkA` (Place ID for Statue of Liberty)
 *   `How long does it usually take to drive from London to Manchester?`
 *   `What's the elevation of Mount Everest?` (May require specific phrasing for the API)
 *   `What is the capital of France?` (Gemini should answer this directly without using a tool)
