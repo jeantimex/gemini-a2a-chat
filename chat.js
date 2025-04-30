@@ -1,8 +1,10 @@
-require('dotenv').config();
-const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
-const fetch = require('node-fetch'); // Using node-fetch v2 for require
+import dotenv from 'dotenv';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import fetch from 'node-fetch';
+import inquirer from 'inquirer';
 
 // --- Configuration ---
+dotenv.config();
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const A2A_SERVER_URL = process.env.A2A_SERVER_URL || "http://localhost:3000"; // Default if not in .env
 const A2A_AGENT_CARD_URL = `${A2A_SERVER_URL}/.well-known/agent.json`;
@@ -113,9 +115,6 @@ async function callA2aSkill(functionName, args) {
 
 // --- Main Chat Logic ---
 async function runChat() {
-    // Dynamically import inquirer
-    const inquirer = (await import('inquirer')).default;
-
     const agentCard = await fetchAgentCard();
     const tools = agentCard?.a2a?.skills;
     const formattedTools = formatSkillsForGemini(tools);
