@@ -54,7 +54,7 @@ async function main() {
   const skills = await fetchAgentCard();
   const gemini = new GoogleGenerativeAI(GEMINI_API_KEY);
   const model = gemini.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-2.0-flash",
     systemInstruction:
       "You are a travel assistant agent with access to Google Maps tools. Break down user goals, suggest queries, call tools, and reply naturally.",
   });
