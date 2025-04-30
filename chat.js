@@ -122,7 +122,7 @@ async function runChat() {
 
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash", // Or your preferred model
+        model: "gemini-2.0-flash", // Or your preferred model
         systemInstruction: "You are a helpful assistant with access to Google Maps tools. Please use the most appropriate tool to answer the user's request based on the information they provide. For example, if they provide a place name or address for an elevation query, use the tool designed for that input.",
     });
 
