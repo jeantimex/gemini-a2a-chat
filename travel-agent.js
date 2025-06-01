@@ -72,7 +72,7 @@ async function main() {
       name: 'input',
       message: 'You:'
     });
-    
+
     const input = answers.input;
     if (input.toLowerCase() === "quit") break;
 
